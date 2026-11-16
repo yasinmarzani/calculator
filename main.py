@@ -321,7 +321,7 @@ def calculate():
 window = Tk()
 window.title("Calculator")
 window.geometry("320x500")
-window.minsize(height=250, width=160)
+window.minsize(height=280, width=180)
 
 result_shown = False
 
