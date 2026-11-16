@@ -155,7 +155,7 @@ def calculate():
 
 # Create the main window.
 window = Tk()
-window.title("Calculator1")
+window.title("Calculator - Percent")
 window.geometry("320x500")
 window.minsize(height=250, width=160)
 
