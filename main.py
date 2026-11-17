@@ -1,10 +1,15 @@
 from tkinter import *
 import math
 
+# TODO: Improve percentage calculations.
+# TODO: Add keyboard shortcuts.
+# TODO: Add calculation history.
+
 
 def clear_display():
     # Clear the entire display.
     display.delete(0, END)
+    update_display_font()
 
 
 def format_result(number):
@@ -21,7 +26,7 @@ def format_result(number):
 
     # Use scientific notation for long results.
     if len(normal_result) > 12:
-        return f"{number:.6e}"
+        return f"{number:.7g}"
 
     return normal_result
 
@@ -31,16 +36,36 @@ def is_operator(value):
     return value in ("+", "−", "×", "÷")
 
 
+def get_last_number(expression):
+    # Find the position of the last operator.
+    last_operator = max(
+        expression.rfind("+"),
+        expression.rfind("−"),
+        expression.rfind("×"),
+        expression.rfind("÷"),
+    )
+
+    # Return the last number in the expression.
+    return expression[last_operator + 1 :]
+
+
+def update_display_font():
+    length = len(display.get())
+
+    if length <= 11:
+        size = display_font_size
+    else:
+        size = round(
+            display_font_size - (length - 11) * (display_font_size - min_font_size) / 5
+        )
+
+    size = max(min_font_size, size)
+    display.config(font=("Arial", size))
+
+
 def can_insert_decimal():
     current = display.get()
-
-    # Extract the last number from the expression.
-    last_number = current
-
-    for operator in ("+", "−", "×", "÷"):
-        last_number = last_number.replace(operator, " ")
-
-    last_number = last_number.split()[-1] if last_number.split() else ""
+    last_number = get_last_number(current)
 
     # Check whether the last number already contains a decimal point.
     return "." not in last_number
@@ -79,6 +104,15 @@ def handle_display(value):
     ):
         clear_display()
 
+    current = display.get()
+
+    # Limit each number to 16 characters.
+    if value in "0123456789.":
+        last_number = get_last_number(current)
+
+        if len(last_number) >= 16:
+            return
+
     # Handle clear buttons.
     if value in ("C", "CE"):
         clear_display()
@@ -92,6 +126,7 @@ def handle_display(value):
             display.delete(len(current) - 1, END)
 
         result_shown = False
+        update_display_font()
 
     # Calculate the expression.
     elif value == "=":
@@ -100,6 +135,7 @@ def handle_display(value):
     # Change the sign of the last number.
     elif value == "±":
         toggle_sign()
+        update_display_font()
 
     # Apply unary operations.
     elif value in ("√", "x²", "1/x"):
@@ -122,6 +158,7 @@ def handle_display(value):
             if not current or is_operator(current[-1]):
                 display.insert(END, "0")
                 result_shown = False
+                update_display_font()
                 return
 
             if current.endswith("0"):
@@ -143,6 +180,7 @@ def handle_display(value):
             display.insert(END, value)
 
         result_shown = False
+        update_display_font()
 
 
 def toggle_sign():
@@ -150,8 +188,17 @@ def toggle_sign():
 
     current = display.get()
 
-    # Return if the display is empty, zero, or ends with an operator.
-    if not current or current == "0" or is_operator(current[-1]):
+    # Return if the display is empty or ends with an operator.
+    if not current or is_operator(current[-1]):
+        return
+
+    last_number = get_last_number(current)
+
+    # Return if the last number is zero or invalid.
+    try:
+        if float(last_number) == 0:
+            return
+    except ValueError:
         return
 
     # Change the sign of the entire result.
@@ -161,19 +208,11 @@ def toggle_sign():
         display.insert(END, format_result(-number))
         return
 
-    # Find the position of the last operator.
-    last_operator = max(
-        current.rfind("+"),
-        current.rfind("−"),
-        current.rfind("×"),
-        current.rfind("÷"),
-    )
-
     # Find the beginning of the last number.
-    start = last_operator + 1
+    start = len(current) - len(last_number)
 
     # Remove the negative sign or insert one.
-    if start < len(current) and current[start] == "-":
+    if current[start] == "-":
         display.delete(start, start + 1)
     else:
         display.insert(start, "-")
@@ -184,7 +223,6 @@ def apply_unary_operation(operation):
 
     current = display.get()
 
-    # Return if the display is empty.
     if not current:
         return
 
@@ -202,12 +240,14 @@ def apply_unary_operation(operation):
         clear_display()
         display.insert(END, format_result(result))
         result_shown = True
+        update_display_font()
 
     except (ValueError, ZeroDivisionError, OverflowError):
         # Display an error if the operation is invalid.
         clear_display()
         display.insert(END, "ERROR")
         result_shown = True
+        update_display_font()
 
 
 def calculate_percentage():
@@ -263,6 +303,7 @@ def calculate_percentage():
         clear_display()
         display.insert(END, format_result(result))
         result_shown = True
+        update_display_font()
 
     except (
         ValueError,
@@ -276,6 +317,7 @@ def calculate_percentage():
         clear_display()
         display.insert(END, "ERROR")
         result_shown = True
+        update_display_font()
 
 
 def calculate():
@@ -293,12 +335,16 @@ def calculate():
     expression = expression.replace("−", "-")
 
     try:
-        # Evaluate the mathematical expression.
-        result = eval(expression)
+        # Keep the original number if no calculation is performed.
+        if expression.lstrip("-").replace(".", "", 1).isdigit():
+            result = expression
+        else:
+            result = format_result(eval(expression))
 
         clear_display()
-        display.insert(END, format_result(result))
+        display.insert(END, result)
         result_shown = True
+        update_display_font()
 
     except (
         SyntaxError,
@@ -311,6 +357,7 @@ def calculate():
         clear_display()
         display.insert(END, "ERROR")
         result_shown = True
+        update_display_font()
 
 
 # Create the main window.
@@ -326,8 +373,19 @@ main_frame = Frame(window, padx=3, pady=3)
 main_frame.pack(fill="both", expand=True)
 
 # Create the calculator display.
-display = Entry(main_frame, font=("Arial", 36), justify="right")
-display.pack(fill="x", ipady=28)
+display_frame = Frame(main_frame, height=120)
+display_frame.pack(fill="x")
+display_frame.pack_propagate(False)
+
+display_font_size = 36
+min_font_size = 24
+
+display = Entry(
+    display_frame,
+    font=("Arial", display_font_size),
+    justify="right",
+)
+display.pack(fill="both", expand=True)
 
 # Create the frame containing the calculator buttons.
 buttons_frame = Frame(main_frame)
