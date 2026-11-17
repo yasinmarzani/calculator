@@ -1,6 +1,5 @@
 from tkinter import *
 import math
-from decimal import Decimal
 
 
 def clear_display():
@@ -22,9 +21,6 @@ def format_result(number):
 
     # Use scientific notation for long results.
     if len(normal_result) > 12:
-        if isinstance(number, int):
-            return f"{Decimal(number):.6e}"
-
         return f"{number:.6e}"
 
     return normal_result
